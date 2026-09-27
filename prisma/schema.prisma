@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------
+// AUTHENTICATION (NextAuth standard models)
+// ---------------------------------------------------------
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  passwordHash  String?
+  role          String    @default("ADMIN") // ADMIN, STAFF
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ---------------------------------------------------------
+// SYSTEM CONFIGURATION (Admin Panel)
+// ---------------------------------------------------------
+model SystemSetting {
+  id          String   @id @default(cuid())
+  category    String   // e.g., "SHOPIFY", "BOSTA", "STORE", "WEBHOOK"
+  key         String   @unique // e.g., "shopify_access_token", "bosta_api_key"
+  value       String
+  isSecret    Boolean  @default(false)
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+model OrderStatusDef {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g., "Waiting Confirmation"
+  color       String   // e.g., "yellow", "green"
+  orderIndex  Int      @default(0) // For sorting in the UI
+  isDefault   Boolean  @default(false)
+  orders      Order[]  @relation("OrderToConfStatus")
+}
+
+model ShippingStatusDef {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g., "Shipped", "Delivered"
+  color       String
+  orderIndex  Int      @default(0)
+  isDefault   Boolean  @default(false)
+  orders      Order[]  @relation("OrderToShipStatus")
+}
+
+// ---------------------------------------------------------
+// CORE BUSINESS ENTITIES
+// ---------------------------------------------------------
+model Customer {
+  id          String   @id @default(cuid())
+  name        String
+  phone       String   @unique
+  address     String?
+  governorate String?
+  orders      Order[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Product {
+  id               String           @id @default(cuid())
+  shopifyProductId String?          @unique
+  name             String
+  isActive         Boolean          @default(true)
+  variants         ProductVariant[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model ProductVariant {
+  id               String      @id @default(cuid())
+  productId        String
+  product          Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  shopifyVariantId String?     @unique
+  name             String      // e.g., "Default Title" or "Color"
+  size             String?     // e.g., "6Y"
+  price            Float
+  sku              String?
+  items            OrderItem[]
+}
+
+model Order {
+  id                   String   @id @default(cuid())
+  shopifyOrderId       String?  @unique
+  orderNumber          String   @unique
+  orderDate            DateTime
+  
+  customerId           String
+  customer             Customer @relation(fields: [customerId], references: [id])
+  
+  // Financials
+  totalAmount          Float    @default(0)
+  paidAmount           Float    @default(0)
+  shippingCost         Float    @default(0)
+  
+  // Dynamic Status Relations
+  confirmationStatusId String?
+  confirmationStatus   OrderStatusDef? @relation("OrderToConfStatus", fields: [confirmationStatusId], references: [id])
+  
+  shippingStatusId     String?
+  shippingStatus       ShippingStatusDef? @relation("OrderToShipStatus", fields: [shippingStatusId], references: [id])
+  
+  // Shipping details
+  shippingCompany      String?  
+  bostaOrderId         String?
+  trackingNumber       String?
+  
+  items                OrderItem[]
+  payments             Payment[]
+  auditLogs            AuditLog[]
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model OrderItem {
+  id                  String   @id @default(cuid())
+  orderId             String
+  order               Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  variantId           String?
+  variant             ProductVariant? @relation(fields: [variantId], references: [id])
+  
+  // Snapshots for historical integrity
+  productNameSnapshot String
+  variantNameSnapshot String?
+  sizeSnapshot        String?
+  quantity            Int
+  unitPrice           Float
+  totalPrice          Float
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount        Float
+  paymentMethod String
+  paymentDate   DateTime @default(now())
+  notes         String?
+  recordedBy    String?  // User ID
+  createdAt     DateTime @default(now())
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  orderId     String?
+  order       Order?   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  entityType  String   // e.g., "Order", "Payment", "Setting"
+  entityId    String
+  action      String   // e.g., "STATUS_CHANGED", "PAYMENT_ADDED"
+  oldValue    String?
+  newValue    String?
+  changedBy   String   // User ID or "System"
+  createdAt   DateTime @default(now())
+}
