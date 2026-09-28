@@ -80,11 +80,11 @@ export default function NewOrderPage() {
                   </div>
                   <div className="col-span-2">
                     <label className="block text-xs font-medium text-zinc-700 mb-1">Quantity</label>
-                    <input required type="number" min="1" value={item.quantity} onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value))} className="w-full px-3 py-2 border border-border-subtle rounded-lg focus:outline-none focus:ring-2 focus:ring-[#789fb1] text-sm" />
+                    <input required type="number" min="1" value={item.quantity} onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 0)} className="w-full px-3 py-2 border border-border-subtle rounded-lg focus:outline-none focus:ring-2 focus:ring-[#789fb1] text-sm" />
                   </div>
                   <div className="col-span-3">
                     <label className="block text-xs font-medium text-zinc-700 mb-1">Unit Price (EGP)</label>
-                    <input required type="number" min="0" step="0.01" value={item.unitPrice} onChange={(e) => updateItem(item.id, 'unitPrice', parseFloat(e.target.value))} className="w-full px-3 py-2 border border-border-subtle rounded-lg focus:outline-none focus:ring-2 focus:ring-[#789fb1] text-sm" />
+                    <input required type="number" min="0" step="0.01" value={item.unitPrice} onChange={(e) => { const v = parseFloat(e.target.value); updateItem(item.id, 'unitPrice', isNaN(v) ? 0 : v); }} className="w-full px-3 py-2 border border-border-subtle rounded-lg focus:outline-none focus:ring-2 focus:ring-[#789fb1] text-sm" />
                   </div>
                   <div className="col-span-1 flex justify-center pb-2">
                     <button type="button" onClick={() => removeItem(item.id)} disabled={items.length === 1} className="text-zinc-400 hover:text-red-500 disabled:opacity-50 disabled:hover:text-zinc-400 transition-colors">
